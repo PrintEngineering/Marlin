@@ -146,6 +146,17 @@ public:
    * the next expected line number.
    */
   static void flush_and_request_resend();
+  
+  #if ENABLED(EMERGENCY_BYPASS)
+  /**
+  * Inject command to the bypass ring buffer
+  */
+  static void enqueue_to_bypass(const char* cmd);
+  /**
+  * Inject command to the next spot to be executed in the ring buffer
+  */
+  static bool enqueue_front_of_line();
+  #endif
 
 private:
 

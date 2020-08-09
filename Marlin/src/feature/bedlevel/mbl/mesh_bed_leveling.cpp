@@ -35,6 +35,9 @@
   mesh_bed_leveling mbl;
 
   float mesh_bed_leveling::z_offset,
+        #if ENABLED(BABYSTEP_MBL_Z_OFFSET)
+          mesh_bed_leveling::z_offset_start,
+        #endif
         mesh_bed_leveling::z_values[GRID_MAX_POINTS_X][GRID_MAX_POINTS_Y],
         mesh_bed_leveling::index_to_xpos[GRID_MAX_POINTS_X],
         mesh_bed_leveling::index_to_ypos[GRID_MAX_POINTS_Y];
@@ -48,7 +51,11 @@
   }
 
   void mesh_bed_leveling::reset() {
-    z_offset = 0;
+    z_offset 
+    #if ENABLED(BABYSTEP_MBL_Z_OFFSET)
+      = z_offset_start
+    #endif
+    = 0;
     ZERO(z_values);
     #if ENABLED(EXTENSIBLE_UI)
       GRID_LOOP(x, y) ExtUI::onMeshUpdate(x, y, 0);

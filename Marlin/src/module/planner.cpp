@@ -1472,7 +1472,12 @@ void Planner::check_axes_activity() {
    *              Leveled XYZ on completion
    */
   void Planner::apply_leveling(xyz_pos_t &raw) {
-    if (!leveling_active) return;
+    if (!leveling_active){
+      #if ENABLED(BABYSTEP_MBL_Z_OFFSET)      
+        raw.z += mbl.z_offset_start;
+      #endif
+      return;
+    } 
 
     #if ABL_PLANAR
 
@@ -1541,6 +1546,9 @@ void Planner::check_axes_activity() {
 
       #endif
     }
+    #if ENABLED(BABYSTEP_MBL_Z_OFFSET)
+      else raw.z -= mbl.z_offset_start;
+    #endif
   }
 
 #endif // HAS_LEVELING

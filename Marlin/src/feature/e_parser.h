@@ -31,6 +31,14 @@
   #include "host_actions.h"
 #endif
 
+  #if ENABLED(EMERGENCY_BYPASS)
+    static char fast_queue_bypass[MAX_CMD_SIZE];
+    static uint16_t bypass_position;
+    //static PGMSTR(fastmagic, "fast:");
+    #include "../gcode/queue.h"
+    #include "../MarlinCore.h"
+  #endif
+
 // External references
 extern bool wait_for_user, wait_for_heatup;
 void quickstop_stepper();
@@ -52,12 +60,18 @@ public:
     EP_M4,
     EP_M41,
     EP_M410,
+    #if ENABLED(EMERGENCY_BYPASS)
+    EP_M411,
+    #endif
     #if ENABLED(HOST_PROMPT_SUPPORT)
       EP_M8,
       EP_M87,
       EP_M876,
       EP_M876S,
       EP_M876SN,
+    #endif
+    #if ENABLED(EMERGENCY_BYPASS)
+      EP_GET_BYPASS,
     #endif
     EP_IGNORE // to '\n'
   };
@@ -82,9 +96,31 @@ public:
           case ' ': case '\n': case '\r': break;
           case 'N': state = EP_N;      break;
           case 'M': state = EP_M;      break;
+#if ENABLED(EMERGENCY_BYPASS)
+          case '!': state = EP_GET_BYPASS; bypass_position = 0; break;
+#endif
           default: state  = EP_IGNORE;
         }
         break;
+
+#if ENABLED(EMERGENCY_BYPASS)
+      case EP_GET_BYPASS:
+        switch (c) {
+          case '\n': case 0: case '!':    
+          send_bypass:  
+            fast_queue_bypass[bypass_position] = 0;
+            SERIAL_ECHOLNPAIR("echo:fast:", fast_queue_bypass);
+             if(bypass_position)queue.enqueue_to_bypass(fast_queue_bypass);
+            bypass_position = 0;
+            if(c != '!')state  = EP_RESET;
+            break;
+          case 'G': case 'g': if(!bypass_position){ state  = EP_IGNORE; break; }
+          default:
+            if(bypass_position<MAX_CMD_SIZE-1)fast_queue_bypass[bypass_position++] = c;
+            else goto send_bypass;
+        }
+        break;
+#endif
 
       case EP_N:
         switch (c) {
@@ -130,7 +166,14 @@ public:
         break;
 
       case EP_M41:
-        state = (c == '0') ? EP_M410 : EP_IGNORE;
+      switch (c){
+        case '0': state = EP_M410;    break;
+        #if ENABLED(EMERGENCY_BYPASS)
+         case '1': state = EP_M411;  break;
+        #endif
+        default:
+          state =  EP_IGNORE;
+      }
         break;
 
       #if ENABLED(HOST_PROMPT_SUPPORT)
@@ -174,6 +217,14 @@ public:
             case EP_M108: wait_for_user = wait_for_heatup = false; break;
             case EP_M112: killed_by_M112 = true; break;
             case EP_M410: quickstop_stepper(); break;
+            #if ENABLED(EMERGENCY_BYPASS)
+            case EP_M411: 
+              queue.clear();
+              #ifdef ACTION_ON_CANCEL
+              host_action(PSTR(ACTION_ON_CANCEL));
+              #endif   
+              break;
+            #endif
             #if ENABLED(HOST_PROMPT_SUPPORT)
               case EP_M876SN: host_response_handler(M876_reason); break;
             #endif

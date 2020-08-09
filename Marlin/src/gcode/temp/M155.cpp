@@ -26,12 +26,24 @@
 
 #include "../gcode.h"
 #include "../../module/temperature.h"
+#if ENABLED(HOST_ACTION_COMMANDS)
+  #include "../../feature/host_actions.h"
+#endif
 
 /**
  * M155: Set temperature auto-report interval. M155 S<seconds>
  */
 void GcodeSuite::M155() {
 
+  if (parser.seen('P')){//automatically report_current_position_projected();
+    gcode.autoreport_position = true; 
+    #if ENABLED(HOST_ACTION_COMMANDS)
+    host_action_notify_P(PSTR("autoreport position"));
+    #else
+    SERIAL_ECHOLN("echo:M155:autoreport position");
+    #endif
+  }
+  else gcode.autoreport_position = false; 
   if (parser.seenval('S'))
     thermalManager.set_auto_report_interval(parser.value_byte());
 

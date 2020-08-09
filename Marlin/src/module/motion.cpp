@@ -67,7 +67,7 @@
   #include "../feature/fwretract.h"
 #endif
 
-#if ENABLED(BABYSTEP_DISPLAY_TOTAL)
+#if ENABLED(BABYSTEP_DISPLAY_TOTAL) || ENABLED(BABYSTEP_MBL_Z_OFFSET)
   #include "../feature/babystep.h"
 #endif
 
@@ -1415,6 +1415,11 @@ void set_axis_is_at_home(const AxisEnum axis) {
   TERN_(I2C_POSITION_ENCODERS, I2CPEM.homed(axis));
 
   TERN_(BABYSTEP_DISPLAY_TOTAL, babystep.reset_total(axis));
+
+    #if ENABLED(BABYSTEP_MBL_Z_OFFSET)
+      if(axis == Z_AXIS)babystep.add_mm(Z_AXIS, mbl.z_offset);
+      mbl.z_offset_start = mbl.z_offset;
+    #endif
 
   #if HAS_POSITION_SHIFT
     position_shift[axis] = 0;

@@ -274,10 +274,10 @@ G29_TYPE GcodeSuite::G29() {
 
       const bool seen_w = parser.seen('W');
       if (seen_w) {
-        if (!leveling_is_valid()) {
+        /*if (!leveling_is_valid()) {//fix 1.3.91 DISABLE???
           SERIAL_ERROR_MSG("No bilinear grid");
           G29_RETURN(false);
-        }
+        }//*/
 
         const float rz = parser.seenval('Z') ? RAW_Z_POSITION(parser.value_linear_units()) : current_position.z;
         if (!WITHIN(rz, -10, 10)) {

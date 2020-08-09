@@ -1523,7 +1523,11 @@ void MarlinSettings::postprocess() {
         EEPROM_READ_ALWAYS(mesh_num_y);
 
         #if ENABLED(MESH_BED_LEVELING)
-          if (!validating) mbl.z_offset = dummyf;
+          if (!validating) mbl.z_offset =
+          #if ENABLED(BABYSTEP_MBL_Z_OFFSET)
+            mbl.z_offset_start =
+          #endif
+           dummyf;
           if (mesh_num_x == GRID_MAX_POINTS_X && mesh_num_y == GRID_MAX_POINTS_Y) {
             // EEPROM data fits the current mesh
             EEPROM_READ(mbl.z_values);
@@ -2517,7 +2521,8 @@ void MarlinSettings::reset() {
     #if HAS_PROBE_XY_OFFSET
       LOOP_XYZ(a) probe.offset[a] = dpo[a];
     #else
-      probe.offset.set(0, 0, dpo[Z_AXIS]);
+      probe.offset.x = probe.offset.y = 0;
+      probe.offset.z = dpo[Z_AXIS];
     #endif
   #endif
 

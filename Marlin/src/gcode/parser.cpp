@@ -159,6 +159,9 @@ void GCodeParser::parse(char *p) {
   // (or a valid parameter for the current motion mode)
   switch (letter) {
 
+    #if ENABLED(EMERGENCY_BYPASS)
+    case '!': command_letter = letter; return;
+    #endif
     case 'G': case 'M': case 'T':
     #if ENABLED(CANCEL_OBJECTS)
       case 'O':

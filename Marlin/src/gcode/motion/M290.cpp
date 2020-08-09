@@ -78,6 +78,9 @@ void GcodeSuite::M290() {
         babystep.add_mm((AxisEnum)a, offs);
         #if ENABLED(BABYSTEP_ZPROBE_OFFSET)
           if (a == Z_AXIS && (!parser.seen('P') || parser.value_bool())) mod_probe_offset(offs);
+        #endif 
+        #if ENABLED(BABYSTEP_MBL_Z_OFFSET)
+          mbl.z_offset += offs; 
         #endif
       }
   #else
@@ -86,6 +89,9 @@ void GcodeSuite::M290() {
       babystep.add_mm(Z_AXIS, offs);
       #if ENABLED(BABYSTEP_ZPROBE_OFFSET)
         if (!parser.seen('P') || parser.value_bool()) mod_probe_offset(offs);
+      #endif
+      #if ENABLED(BABYSTEP_MBL_Z_OFFSET)
+        mbl.z_offset += offs; 
       #endif
     }
   #endif

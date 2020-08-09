@@ -75,6 +75,7 @@ uint8_t GcodeSuite::axis_relative = (
 
 #if EITHER(HAS_AUTO_REPORTING, HOST_KEEPALIVE_FEATURE)
   bool GcodeSuite::autoreport_paused; // = false
+  bool GcodeSuite::autoreport_position; // = false
 #endif
 
 #if ENABLED(HOST_KEEPALIVE_FEATURE)
@@ -489,6 +490,10 @@ void GcodeSuite::process_parsed_command(const bool no_ok/*=false*/) {
         TERN_(HOST_PROMPT_SUPPORT, case 876:)
         break;
       #endif
+      #if ENABLED(EMERGENCY_BYPASS)
+      case 411: 
+        break;
+      #endif
 
       #if ENABLED(HOST_KEEPALIVE_FEATURE)
         case 113: M113(); break;                                  // M113: Set Host Keepalive interval
@@ -897,6 +902,10 @@ void GcodeSuite::process_parsed_command(const bool no_ok/*=false*/) {
       default: parser.unknown_command_warning(); break;
     }
     break;
+
+    #if ENABLED(EMERGENCY_BYPASS)
+    case '!': break;
+    #endif
 
     case 'T': T(parser.codenum); break;                           // Tn: Tool Change
 

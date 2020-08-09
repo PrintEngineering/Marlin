@@ -100,21 +100,70 @@ GCodeQueue::GCodeQueue() {
   // Send "ok" after commands by default
   LOOP_L_N(i, COUNT(send_ok)) send_ok[i] = true;
 }
-
+#if ENABLED(EMERGENCY_BYPASS)
+#ifndef EMERGENCY_BYPASS_QUEUE_SIZE
+#define EMERGENCY_BYPASS_QUEUE_SIZE 5
+#endif
+static char bypass_queue[EMERGENCY_BYPASS_QUEUE_SIZE][MAX_CMD_SIZE];
+static u8 bypass_length; 
+static u8 bypass_index_r; 
+static u8 bypass_index_w; 
+#endif
 /**
  * Check whether there are any commands yet to be executed
  */
 bool GCodeQueue::has_commands_queued() {
-  return queue.length || injected_commands_P || injected_commands[0];
+  return queue.length || injected_commands_P || injected_commands[0]
+  #if ENABLED(EMERGENCY_BYPASS)
+  || bypass_length
+  #endif
+  ;
 }
 
 /**
  * Clear the Marlin command queue
  */
 void GCodeQueue::clear() {
-  index_r = index_w = length = 0;
+  index_r = index_w = length =  
+  #if ENABLED(EMERGENCY_BYPASS)
+  bypass_index_r = bypass_index_w = bypass_length = 
+  #endif
+  0;
 }
 
+
+#if ENABLED(EMERGENCY_BYPASS)
+/**
+ * Inject command to the next spot to be executed in the ring buffer
+ */
+
+void GCodeQueue::enqueue_to_bypass(const char* cmd)
+{
+  if(bypass_length >= EMERGENCY_BYPASS_QUEUE_SIZE){
+    SERIAL_ECHOLN("echo:fast:buffer overflow");
+    return;//trash overflow commands
+  }strcpy(bypass_queue[bypass_index_w], cmd);
+  if(bypass_index_w > 0)bypass_index_w--;
+  else bypass_index_w = EMERGENCY_BYPASS_QUEUE_SIZE-1;
+  bypass_length++;
+}
+bool GCodeQueue::enqueue_front_of_line()
+{
+  if(!bypass_length || length >= BUFSIZE)return false;
+
+  if(index_r > 0)index_r--;
+  else index_r = BUFSIZE-1;
+  send_ok[index_r] = true;
+  strcpy(command_buffer[index_r], bypass_queue[bypass_index_r]);
+  TERN_(HAS_MULTI_SERIAL, port[index_r] = p); //not sure about this
+  length++;
+
+  if(bypass_index_r > 0)bypass_index_r--;
+  else bypass_index_r = EMERGENCY_BYPASS_QUEUE_SIZE-1;
+  bypass_length--;
+  return true;
+}
+#endif
 /**
  * Once a new command is in the ring buffer, call this to commit it
  */
@@ -502,6 +551,8 @@ void GCodeQueue::get_serial_commands() {
         //
 
         if (IsStopped()) {
+          bool M118 = strstr_P(command, PSTR("M118")) != nullptr;
+          bool M117 = strstr_P(command, PSTR("M117")) != nullptr;
           char* gpos = strchr(command, 'G');
           if (gpos) {
             switch (strtol(gpos + 1, nullptr, 10)) {
@@ -512,9 +563,11 @@ void GCodeQueue::get_serial_commands() {
               #if ENABLED(BEZIER_CURVE_SUPPORT)
                 case 5:
               #endif
-                PORT_REDIRECT(i);                      // Reply to the serial port that sent the command
-                SERIAL_ECHOLNPGM(STR_ERR_STOPPED);
-                LCD_MESSAGEPGM(MSG_STOPPED);
+                if(!M117 && !M118){
+                  PORT_REDIRECT(i);                      // Reply to the serial port that sent the command
+                  SERIAL_ECHOLNPGM(STR_ERR_STOPPED);
+                  LCD_MESSAGEPGM(MSG_STOPPED);
+                }
                 break;
             }
           }
@@ -610,9 +663,11 @@ void GCodeQueue::get_available_commands() {
 void GCodeQueue::advance() {
 
   // Process immediate commands
-  if (process_injected_command_P() || process_injected_command()) return;
-
-  // Return if the G-code buffer is empty
+  if (process_injected_command_P() || process_injected_command() 
+  #if ENABLED(EMERGENCY_BYPASS)
+  || enqueue_front_of_line()
+  #endif
+  ) return;
   if (!length) return;
 
   #if ENABLED(SDSUPPORT)

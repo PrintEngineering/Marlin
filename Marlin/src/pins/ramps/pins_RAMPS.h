@@ -253,7 +253,7 @@
 
 // RAMPS 1.4 DIO 4 on the servos connector
 #ifndef FIL_RUNOUT_PIN
-  #define FIL_RUNOUT_PIN                       4
+  #define FIL_RUNOUT_PIN                        2 //default is 4, changed for this mod
 #endif
 
 #ifndef PS_ON_PIN
